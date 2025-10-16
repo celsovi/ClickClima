@@ -1,6 +1,3 @@
-# docker-compose.yml
-version: '3.8'
-
 services:
   db:
     container_name: clickclima-db
@@ -11,16 +8,16 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - '5432:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    pull_policy: always
   api:
     container_name: clickclima-api
-    build: .
+    image: registry.simple4decision.com/clickclima-api:latest
     command: >
       sh -c "
         # Espera pelo Postgres estar pronto
@@ -29,15 +26,18 @@ services:
           sleep 2
         done
         echo 'PostgreSQL is up and running. Applying migrations...'
-        python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000"
-    volumes:
-      - .:/app
-    ports:
-      - '8000:8000'
+        python /app/manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     depends_on:
       - db
     env_file:
       - .env
+    restart: unless-stopped
+    pull_policy: always
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+    external: true
+    name: proxy-network
